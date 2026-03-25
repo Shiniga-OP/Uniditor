@@ -5,6 +5,9 @@ import com.uniditor.nucleo.Buffer;
 public class EntradaTextoSimples implements EntradaTexto {
     public final Buffer buffer;
     public final Cursor cursor;
+    public Teclado teclado;
+
+    public final Selecao selecao = new Selecao();
 
     public EntradaTextoSimples(Buffer buffer, Cursor cursor) {
         this.buffer = buffer;
@@ -15,13 +18,10 @@ public class EntradaTextoSimples implements EntradaTexto {
     public void add(String texto) {
         buffer.add(cursor.linha(), cursor.coluna(), texto);
 
-        // recalcula posição depois da inserção
         if(texto.contains("\n")) {
             String[] partes = texto.split("\n", -1);
             int novaLinha = cursor.linha() + partes.length - 1;
             int novaColuna = partes[partes.length - 1].length();
-            // se havia texto depois do cursor na linha original, ele vai pra linha nova
-            // a coluna da ultima parte do texto inserido é a posição correta
             cursor.def(novaLinha, novaColuna);
         } else {
             cursor.def(cursor.linha(), cursor.coluna() + texto.length());
@@ -30,36 +30,92 @@ public class EntradaTextoSimples implements EntradaTexto {
 
     @Override
     public void rmAntes() {
+        if(selecao.ativa) { rmSelecao(); return; }
         int linha = cursor.linha();
         int coluna = cursor.coluna();
 
         if(coluna > 0) {
-            // deleção simples dentro da linha
             buffer.rm(linha, coluna - 1, 1);
             cursor.def(linha, coluna - 1);
-        } else if (linha > 0) {
-            // cursor no início da linha  junta com a linha anterior
+        } else if(linha > 0) {
             int colunaAnterior = buffer.linha(linha - 1).length();
-            buffer.rm(linha - 1, colunaAnterior, 1); // deleta o \n
+            buffer.rm(linha - 1, colunaAnterior, 1);
             cursor.def(linha - 1, colunaAnterior);
         }
-        // se linha == 0 e coluna == 0, não faz nada
     }
 
     @Override
     public void rmDepois() {
+        if(selecao.ativa) { rmSelecao(); return; }
         int linha = cursor.linha();
         int coluna = cursor.coluna();
         String linhaAtual = buffer.linha(linha);
 
         if(coluna < linhaAtual.length()) {
-            // deleção simples dentro da linha
             buffer.rm(linha, coluna, 1);
         } else if(linha < buffer.totalLinhas() - 1) {
-            // cursor no fim da linha junta com a próxima
-            buffer.rm(linha, coluna, 1); // deleta o \n
+            buffer.rm(linha, coluna, 1);
         }
-        // cursor não muda de posição no deletarDepois
+        cursor.clampar(buffer);
+    }
+
+    // === seleção ===
+
+    @Override
+    public Selecao selecao() { return selecao; }
+
+    @Override
+    public void iniciarSelecao(int linha, int coluna) {
+        selecao.iniciar(linha, coluna);
+    }
+
+    @Override
+    public void attSelecao(int linha, int coluna) {
+        selecao.att(linha, coluna);
+    }
+
+    @Override
+    public void limparSelecao() {
+        selecao.limpar();
+    }
+
+    @Override
+    public void selecionarTudo(Buffer buffer) {
+        int ultimaLinha = buffer.totalLinhas() - 1;
+        int ultimaColuna = buffer.linha(ultimaLinha).length();
+        selecao.iniciar(0, 0);
+        selecao.att(ultimaLinha, ultimaColuna);
+    }
+
+    @Override
+    public String copiar() {
+        return selecao.extrair(buffer);
+    }
+
+    @Override
+    public void rmSelecao() {
+        if(!selecao.ativa) return;
+        int[] ini = selecao.inicio();
+        int[] fim = selecao.fim();
+
+        int maxLinha = buffer.totalLinhas() - 1;
+        ini[0] = Math.min(ini[0], maxLinha);
+        fim[0] = Math.min(fim[0], maxLinha);
+        ini[1] = Math.min(ini[1], buffer.linha(ini[0]).length());
+        fim[1] = Math.min(fim[1], buffer.linha(fim[0]).length());
+
+        String prefixo = buffer.linha(ini[0]).substring(0, ini[1]);
+        String sufixo = buffer.linha(fim[0]).substring(fim[1]);
+
+        for(int i = fim[0]; i > ini[0]; i--) {
+            buffer.rm(i - 1, buffer.linha(i - 1).length(), 1);
+        }
+        String linhaAtual = buffer.linha(ini[0]);
+        buffer.rm(ini[0], 0, linhaAtual.length());
+        buffer.add(ini[0], 0, prefixo + sufixo);
+
+        selecao.limpar();
+        cursor.def(ini[0], ini[1]);
         cursor.clampar(buffer);
     }
 }

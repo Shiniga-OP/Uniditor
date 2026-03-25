@@ -1,57 +1,243 @@
 package com.uniditor.android;
 
-import android.view.View;
-import android.graphics.Canvas;
-import com.uniditor.nucleo.Editor;
-import android.view.MotionEvent;
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.Context;
+import android.view.ActionMode;
+import android.view.GestureDetector;
+import android.view.Menu;
+import android.view.MenuItem;
+import android.view.MotionEvent;
+import android.view.KeyEvent;
+import android.view.View;
 import android.view.inputmethod.BaseInputConnection;
-import android.view.inputmethod.InputConnection;
 import android.view.inputmethod.EditorInfo;
+import android.view.inputmethod.InputConnection;
 import android.view.inputmethod.InputMethodManager;
+
+import com.uniditor.nucleo.Editor;
 import com.uniditor.nucleo.entradas.Teclado;
 
 public class EditorAndroidCanvas extends View {
-	public Editor editor;
-	public View ISSO;
-	
-	public EditorAndroidCanvas(Context ctx, Editor editor) {
-		super(ctx);
-		this.editor = editor;
-		
-		this.ISSO = this;
-		this.editor.entrada.teclado = new Teclado() {
-			@Override
-			public void abrirTeclado() {
-				InputMethodManager imm = (InputMethodManager)getContext()
-					.getSystemService(Context.INPUT_METHOD_SERVICE);
-				if(imm != null) imm.showSoftInput(ISSO, InputMethodManager.SHOW_IMPLICIT);
-			}
-		};
-		setFocusable(true);
-        setFocusableInTouchMode(true);
-	}
-	
-	@Override
-	protected void onDraw(android.graphics.Canvas canvas) {
-		editor.render.defAPI(canvas);
-		editor.render.ajustar(getWidth(), getHeight());
-		editor.att();
-	}
+    public Editor editor;
+    public View ISSO;
 
-	@Override
-	public boolean onTouchEvent(MotionEvent e) {
-		requestFocus();
-		editor.aoTocar(e.getX(), e.getY());
-		invalidate();
-		return true;
-	}
-	
-	@Override
+    public static final float LIMIAR_DRAG = 8f;
+
+    public float toqueInicioX, toqueInicioY;
+    public boolean arrastando = false;
+    public boolean longPressAtivo = false;
+
+    public ActionMode modoAcao = null;
+
+    public static final int ID_COPIAR = 1;
+    public static final int ID_RECORTAR = 2;
+    public static final int ID_COLAR = 3;
+    public static final int ID_SELECIONAR_TUDO = 4;
+
+    public GestureDetector gestureDetector;
+
+    public EditorAndroidCanvas(Context ctx, final Editor editor) {
+        super(ctx);
+        this.editor = editor;
+
+        this.ISSO = this;
+        this.editor.entrada.teclado = new Teclado() {
+            @Override
+            public void abrirTeclado() {
+                InputMethodManager imm = (InputMethodManager) getContext()
+                    .getSystemService(Context.INPUT_METHOD_SERVICE);
+                if(imm != null) imm.showSoftInput(ISSO, InputMethodManager.SHOW_IMPLICIT);
+            }
+        };
+
+        gestureDetector = new GestureDetector(ctx, new GestureDetector.SimpleOnGestureListener() {
+				@Override
+				public void onLongPress(MotionEvent e) {
+					longPressAtivo = true;
+					int[] pos = editor.posToque(e.getX(), e.getY());
+					selecionarPalavra(pos[0], pos[1]);
+					abrirModoAcao();
+					invalidate();
+				}
+			});
+
+        setFocusable(true);
+        setFocusableInTouchMode(true);
+    }
+
+    public void selecionarPalavra(int linha, int coluna) {
+        String conteudo = editor.buffer.linha(linha);
+        if(conteudo.isEmpty()) return;
+        coluna = Math.min(coluna, conteudo.length());
+
+        int ini = coluna;
+        int fim = coluna;
+
+        while(ini > 0 && eSeparador(conteudo.charAt(ini - 1))) ini--;
+        if(ini == coluna && coluna < conteudo.length() && eSeparador(conteudo.charAt(coluna))) {
+            fim = coluna + 1;
+            editor.entrada.iniciarSelecao(linha, ini);
+            editor.entrada.attSelecao(linha, fim);
+            return;
+        }
+        while(ini > 0 && !eSeparador(conteudo.charAt(ini - 1))) ini--;
+        while(fim < conteudo.length() && !eSeparador(conteudo.charAt(fim))) fim++;
+
+        editor.entrada.iniciarSelecao(linha, ini);
+        editor.entrada.attSelecao(linha, fim);
+    }
+
+    public static boolean eSeparador(char c) {
+        return Character.isWhitespace(c)
+            || c == '.' || c == ',' || c == ';' || c == ':'
+            || c == '!' || c == '?' || c == '(' || c == ')'
+            || c == '[' || c == ']' || c == '{' || c == '}'
+            || c == '"' || c == '\'' || c == '/' || c == '\\'
+            || c == '-' || c == '+' || c == '=' || c == '<'
+            || c == '>' || c == '&' || c == '|' || c == '@';
+    }
+
+    public final ActionMode.Callback padraoAcao = new ActionMode.Callback() {
+        @Override
+        public boolean onCreateActionMode(ActionMode modo, Menu menu) {
+            menu.add(0, ID_COPIAR, 0, "Copiar");
+            menu.add(0, ID_RECORTAR, 1, "Recortar");
+            menu.add(0, ID_COLAR, 2, "Colar");
+            menu.add(0, ID_SELECIONAR_TUDO, 3, "Selecionar tudo");
+            return true;
+        }
+
+        @Override
+        public boolean onPrepareActionMode(ActionMode modo, Menu menu) {
+            // desabilita Copiar e Recortar se não há seleção
+            boolean temSelecao = editor.entrada.selecao().ativa && !editor.entrada.copiar().isEmpty();
+            menu.findItem(ID_COPIAR).setEnabled(temSelecao);
+            menu.findItem(ID_RECORTAR).setEnabled(temSelecao);
+            return true;
+        }
+
+        @Override
+        public boolean onActionItemClicked(ActionMode modo, MenuItem item) {
+            ClipboardManager clip = (ClipboardManager)
+                getContext().getSystemService(Context.CLIPBOARD_SERVICE);
+
+            switch(item.getItemId()) {
+                case ID_COPIAR:
+                    String textoCopiar = editor.entrada.copiar();
+                    if(!textoCopiar.isEmpty() && clip != null)
+                        clip.setPrimaryClip(ClipData.newPlainText("texto", textoCopiar));
+                    modo.finish();
+                    return true;
+                case ID_RECORTAR:
+                    String textoRecortar = editor.entrada.copiar();
+                    if(!textoRecortar.isEmpty() && clip != null) {
+                        clip.setPrimaryClip(ClipData.newPlainText("texto", textoRecortar));
+                        editor.entrada.rmSelecao();
+                    }
+                    modo.finish();
+                    return true;
+                case ID_COLAR:
+                    if(clip != null && clip.hasPrimaryClip()) {
+                        ClipData.Item it = clip.getPrimaryClip().getItemAt(0);
+                        if(it != null && it.getText() != null)
+                            editor.entrada.add(it.getText().toString());
+                    }
+                    modo.finish();
+                    return true;
+                case ID_SELECIONAR_TUDO:
+                    editor.entrada.selecionarTudo(editor.buffer);
+                    modo.invalidate();
+                    invalidate();
+                    return true;
+            }
+            return false;
+        }
+
+        @Override
+        public void onDestroyActionMode(ActionMode modo) {
+            modoAcao = null;
+            editor.entrada.limparSelecao();
+            invalidate();
+        }
+    };
+
+    public void abrirModoAcao() {
+        if(modoAcao == null) modoAcao = startActionMode(padraoAcao);
+        else modoAcao.invalidate();
+    }
+
+    @Override
+    protected void onDraw(android.graphics.Canvas canvas) {
+        editor.render.defAPI(canvas);
+        editor.render.ajustar(getWidth(), getHeight());
+        editor.att();
+    }
+
+    @Override
+    public boolean onTouchEvent(MotionEvent e) {
+        requestFocus();
+        gestureDetector.onTouchEvent(e);
+
+        switch(e.getAction()) {
+            case MotionEvent.ACTION_DOWN:
+                toqueInicioX = e.getX();
+                toqueInicioY = e.getY();
+                arrastando = false;
+                longPressAtivo = false;
+                if(modoAcao != null) modoAcao.finish();
+                editor.entrada.limparSelecao();
+                break;
+            case MotionEvent.ACTION_MOVE:
+                if(longPressAtivo) {
+                    float ldc = Math.abs(e.getX() - toqueInicioX);
+                    float ldy = Math.abs(e.getY() - toqueInicioY);
+                    if(ldc > LIMIAR_DRAG || ldy > LIMIAR_DRAG) {
+                        int[] posAtual = editor.posToque(e.getX(), e.getY());
+                        editor.entrada.attSelecao(posAtual[0], posAtual[1]);
+                        invalidate();
+                    }
+                    break;
+                }
+                float dx = Math.abs(e.getX() - toqueInicioX);
+                float dy = Math.abs(e.getY() - toqueInicioY);
+                if(!arrastando && (dx > LIMIAR_DRAG || dy > LIMIAR_DRAG)) {
+                    arrastando = true;
+                    int[] posInicio = editor.posToque(toqueInicioX, toqueInicioY);
+                    editor.entrada.iniciarSelecao(posInicio[0], posInicio[1]);
+                }
+                if(arrastando) {
+                    int[] posAtual = editor.posToque(e.getX(), e.getY());
+                    editor.entrada.attSelecao(posAtual[0], posAtual[1]);
+                }
+                break;
+            case MotionEvent.ACTION_UP:
+                if(longPressAtivo) {
+                    longPressAtivo = false;
+                    break;
+                }
+                if(arrastando) {
+                    arrastando = false;
+                    String sel = editor.entrada.copiar();
+                    if(sel.isEmpty()) {
+                        editor.entrada.limparSelecao();
+                    } else {
+                        abrirModoAcao();
+                    }
+                } else {
+                    editor.aoTocar(e.getX(), e.getY());
+                }
+                break;
+        }
+        invalidate();
+        return true;
+    }
+
+    @Override
     public InputConnection onCreateInputConnection(EditorInfo info) {
         info.inputType = android.text.InputType.TYPE_CLASS_TEXT
-			| android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE
-			| android.text.InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS;
+            | android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE
+            | android.text.InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS;
         info.imeOptions = EditorInfo.IME_FLAG_NO_ENTER_ACTION;
 
         return new BaseInputConnection(this, false) {
@@ -73,21 +259,20 @@ public class EditorAndroidCanvas extends View {
             }
 
             @Override
-            public boolean sendKeyEvent(android.view.KeyEvent evento) {
-                // teclas de seta via teclado fisico/bluetooth
-                if(evento.getAction() == android.view.KeyEvent.ACTION_DOWN) {
+            public boolean sendKeyEvent(KeyEvent evento) {
+                if(evento.getAction() == KeyEvent.ACTION_DOWN) {
                     switch(evento.getKeyCode()) {
-                        case android.view.KeyEvent.KEYCODE_DPAD_UP:
+                        case KeyEvent.KEYCODE_DPAD_UP:
                             editor.cursor.mover(-1, 0, editor.buffer); break;
-                        case android.view.KeyEvent.KEYCODE_DPAD_DOWN:
-                            editor.cursor.mover(1, 0, editor.buffer);  break;
-                        case android.view.KeyEvent.KEYCODE_DPAD_LEFT:
+                        case KeyEvent.KEYCODE_DPAD_DOWN:
+                            editor.cursor.mover(1,  0, editor.buffer); break;
+                        case KeyEvent.KEYCODE_DPAD_LEFT:
                             editor.cursor.mover(0, -1, editor.buffer); break;
-                        case android.view.KeyEvent.KEYCODE_DPAD_RIGHT:
-                            editor.cursor.mover(0, 1, editor.buffer);  break;
-                        case android.view.KeyEvent.KEYCODE_DEL:
+                        case KeyEvent.KEYCODE_DPAD_RIGHT:
+                            editor.cursor.mover(0,  1, editor.buffer); break;
+                        case KeyEvent.KEYCODE_DEL:
                             editor.entrada.rmAntes(); break;
-                        case android.view.KeyEvent.KEYCODE_FORWARD_DEL:
+                        case KeyEvent.KEYCODE_FORWARD_DEL:
                             editor.entrada.rmDepois(); break;
                         default:
                             return super.sendKeyEvent(evento);
@@ -100,10 +285,12 @@ public class EditorAndroidCanvas extends View {
             }
         };
     }
-	
-	@Override
+
+    @Override
     protected void onDetachedFromWindow() {
         super.onDetachedFromWindow();
+        if(modoAcao != null) modoAcao.finish();
         editor.render.liberar();
     }
 }
+

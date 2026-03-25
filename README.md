@@ -27,3 +27,4 @@ public class SuaActivity extends Activity {
 ## feito atualmente:
 1. Editor de texto básico.
 2. Quantidade de linhas ao lado.
+3. (Android)Arrastar/Pressionar abre o menu de opções(Copiar, Colar, Recortar). Além de selecionar pressionando ou arrastando o dedo.
