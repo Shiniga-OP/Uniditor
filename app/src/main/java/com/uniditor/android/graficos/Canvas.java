@@ -102,15 +102,6 @@ public class Canvas implements Renderizador {
 		int pos = 0;
 
 		for(Token token : cores) {
-			Cor c = token.cor;
-			
-			// 1. desenha o trecho sem estilo(antes do token)
-			if(pos < c.inicio) {
-				pincelTexto.setTypeface(Typeface.defaultFromStyle(Typeface.NORMAL));
-				pincelTexto.setColor(corOriginal);
-				float ox = x + pincelTexto.measureText(texto, 0, pos);
-				canvas.drawText(texto, pos, c.inicio, ox, y, pincelTexto);
-			}
 			// 2. aplica estilo e desenha o token
 			if(token.negrito && token.italico) {
 				pincelTexto.setTypeface(Typeface.defaultFromStyle(Typeface.BOLD_ITALIC));
@@ -121,14 +112,14 @@ public class Canvas implements Renderizador {
 			} else {
 				pincelTexto.setTypeface(Typeface.defaultFromStyle(Typeface.NORMAL));
 			}
-			if(c.inicio < c.fim && c.fim <= texto.length()) {
-				pincelTexto.setColor(c.valor);
-				float ox = x + pincelTexto.measureText(texto, 0, c.inicio);
-				canvas.drawText(texto, c.inicio, c.fim, ox, y, pincelTexto);
-				pos = c.fim;
+			if(token.inicio < token.fim && token.fim <= texto.length()) {
+				pincelTexto.setColor(token.cor);
+				float ox = x + pincelTexto.measureText(texto, 0, token.inicio);
+				canvas.drawText(texto, token.inicio, token.fim, ox, y, pincelTexto);
+				pos = token.fim;
 			}
 		}
-		// 3. desenha o trecho restante sem estilo
+		// desenha o trecho restante sem estilo
 		if(pos < texto.length()) {
 			pincelTexto.setTypeface(Typeface.defaultFromStyle(Typeface.NORMAL));
 			pincelTexto.setColor(corOriginal);

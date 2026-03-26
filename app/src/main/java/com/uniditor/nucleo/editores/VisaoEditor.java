@@ -7,7 +7,6 @@ import com.uniditor.nucleo.Buffer;
 import com.uniditor.nucleo.BufferSimples;
 import com.uniditor.nucleo.graficos.Cor;
 import com.uniditor.nucleo.graficos.Renderizador;
-import com.uniditor.nucleo.sintaxe.Destaque;
 import com.uniditor.nucleo.Editor;
 import com.uniditor.nucleo.entradas.EntradaTexto;
 import java.util.Timer;
@@ -16,20 +15,20 @@ import com.uniditor.nucleo.sintaxe.Tokenizador;
 import com.uniditor.nucleo.sintaxe.Token;
 
 public class VisaoEditor extends Editor {
-    public final float ESPACO_ESQ = 12f;
+    public float ESPACO_ESQ = 12f;
 
     public boolean cursorVisivel = true;
     public Timer relogio;
     public TimerTask piscaCursor;
 
-    public final int COR_FUNDO = 0xFF1E1E1E;
-    public final int COR_TEXTO = 0xFFE0E0E0;
-    public final int COR_CURSOR = 0xFFFFFFFF;
-    public final int COR_NUMERO_LINHA = 0xFF606060;
-    public final int COR_sarjeta_FUNDO = 0xFF252525;
-    public final int COR_SELECAO = 0x664FC3FF;
+    public int COR_FUNDO = 0xFF1E1E1E;
+    public int COR_TEXTO = 0xFFE0E0E0;
+    public int COR_CURSOR = 0xFFFFFFFF;
+    public int COR_NUMERO_LINHA = 0xFF606060;
+    public int COR_SARJETA_FUNDO = 0xFF252525;
+    public int COR_SELECAO = 0x664FC3FF;
 
-    public Destaque destaque = null; // null = sem coloração
+    public Tokenizador tokenizador; // null = sem coloração nem complete
 
     public VisaoEditor(Renderizador render, Tokenizador tokenizador) {
         this("", render, tokenizador);
@@ -41,7 +40,7 @@ public class VisaoEditor extends Editor {
         entrada = new EntradaTextoSimples(buffer, cursor);
         this.render = render;
         this.render.iniciar();
-		this.destaque = new Destaque(tokenizador);
+		this.tokenizador = tokenizador;
 
         if(relogio == null) relogio = new Timer();
 
@@ -54,14 +53,13 @@ public class VisaoEditor extends Editor {
         relogio.schedule(piscaCursor, 500, 500);
 
         ESPACO_TOPO = 12f;
-        rolamentoY  = 0f;
+        rolamentoY = 0f;
     }
 
     @Override
     public void aoTocar(float x, float y) {
         abrirTeclado();
-        moverCursorToque(x, y);
-        cursorVisivel = true;
+        moverCursor(x, y);
     }
 
     @Override
@@ -91,23 +89,9 @@ public class VisaoEditor extends Editor {
         return new int[]{linha, coluna};
     }
 
-    public void moverCursorToque(float tX, float tY) {
+    public void moverCursor(float tX, float tY) {
         int[] pos = posToque(tX, tY);
         cursor.def(pos[0], pos[1]);
-        garantirCursorVisivel();
-    }
-
-    @Override
-    public void garantirCursorVisivel() {
-        float altLinha = render.alturaLinha();
-        float yCursor = ESPACO_TOPO + cursor.linha() * altLinha;
-        float tela = render.largura;
-
-        if(yCursor - rolamentoY < 0) {
-            rolamentoY = yCursor;
-        } else if(yCursor - rolamentoY + altLinha > tela) {
-            rolamentoY = yCursor + altLinha - tela;
-        }
     }
 
     public float larguraSarjeta() {
@@ -157,12 +141,12 @@ public class VisaoEditor extends Editor {
             }
         }
         // === texto ===
-        if(destaque != null) destaque.reiniciar();
+        if(tokenizador != null) tokenizador.reiniciar();
         for(int i = primeiraLinha; i <= ultimaLinha; i++) {
             float y = ESPACO_TOPO + i * altLinha + baseline;
             String linhaStr = buffer.linha(i);
-            if(destaque != null) {
-                Token[] cores = destaque.colorir(linhaStr);
+            if(tokenizador != null) {
+                Token[] cores = tokenizador.tokenizar(linhaStr);
                 render.renderTextoCor(linhaStr, cores, sarjetaLarg + ESPACO_ESQ, y);
             } else {
                 render.defCorTexto(COR_TEXTO);
@@ -179,7 +163,7 @@ public class VisaoEditor extends Editor {
         render.subRecorte();
 
         // === sarjeta ===
-        render.renderRetangulo(0, 0, sarjetaLarg, render.altura, COR_sarjeta_FUNDO);
+        render.renderRetangulo(0, 0, sarjetaLarg, render.altura, COR_SARJETA_FUNDO);
         render.defCorTexto(COR_NUMERO_LINHA);
         for(int i = primeiraLinha; i <= ultimaLinha; i++) {
             float y = ESPACO_TOPO + i * altLinha + baseline - rolamentoY;
@@ -195,5 +179,10 @@ public class VisaoEditor extends Editor {
         cursor.def(0, 0);
         rolamentoY = 0f;
     }
+	
+	@Override
+	public void liberar() {
+		render.liberar();
+	}
 }
 

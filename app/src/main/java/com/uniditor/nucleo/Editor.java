@@ -17,6 +17,6 @@ public abstract class Editor {
     public abstract void abrirTeclado();
     public abstract void att();
     public abstract void aoTocar(float x, float y);
-    public abstract void garantirCursorVisivel();
 	public abstract int[] posToque(float x, float y);
+	public abstract void liberar();
 }

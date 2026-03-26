@@ -45,10 +45,10 @@ public class TokenizadorCpp implements Tokenizador {
         if(emComentarioBloco) {
             int fim = linha.indexOf("*/");
             if(fim == -1) {
-                cores.add(new Token(new Cor(0, n, COR_COMENTARIO)));
+                cores.add(new Token(0, n, COR_COMENTARIO, false, true));
                 return cores.toArray(new Token[0]);
             } else {
-                cores.add(new Token(new Cor(0, fim + 2, COR_COMENTARIO)));
+                cores.add(new Token(0, fim + 2, COR_COMENTARIO, false, true));
                 emComentarioBloco = false;
                 i = fim + 2;
             }
@@ -62,19 +62,19 @@ public class TokenizadorCpp implements Tokenizador {
 			}
             // pré-processador
             if(c == '#') {
-                cores.add(new Token(new Cor(i, n, COR_PRE_PROCESSADOR), false, true));
+                cores.add(new Token(i, i + 8, COR_PRE_PROCESSADOR, false, true));
                 // <leitor> ou "leitor" dentro do #include
                 String resto = linha.substring(i).trim();
                 if(resto.startsWith("#include")) {
                     int lt = linha.indexOf('<', i);
                     int gt = lt != -1 ? linha.indexOf('>', lt) : -1;
                     if(lt != -1 && gt != -1) {
-                        cores.add(new Token(new Cor(lt, gt + 1, Cor.AZUL), false, true));
+                        cores.add(new Token(lt, gt + 1, Cor.AZUL, false, true));
                     } else {
                         int qt = linha.indexOf('"', i);
                         if(qt != -1) {
                             int qf = linha.indexOf('"', qt + 1);
-                            if(qf != -1) cores.add(new Token(new Cor(qt, qf + 1, Cor.AZUL)));
+                            if(qf != -1) cores.add(new Token(qt, qf + 1, Cor.AZUL));
                         }
                     }
                 }
@@ -82,18 +82,18 @@ public class TokenizadorCpp implements Tokenizador {
             }
             // comentario de linha
             if(c == '/' && i + 1 < n && linha.charAt(i + 1) == '/') {
-                cores.add(new Token(new Cor(i, n, COR_COMENTARIO), false, true)); // italico mas não negrito
+                cores.add(new Token(i, n, COR_COMENTARIO, false, true)); // italico mas não negrito
                 return cores.toArray(new Token[0]);
             }
             // comentario de bloco
             if(c == '/' && i + 1 < n && linha.charAt(i + 1) == '*') {
                 int fim = linha.indexOf("*/", i + 2);
                 if(fim == -1) {
-                    cores.add(new Token(new Cor(i, n, COR_COMENTARIO), false, true));
+                    cores.add(new Token(i, n, COR_COMENTARIO, false, true));
                     emComentarioBloco = true;
                     return cores.toArray(new Token[0]);
                 } else {
-                    cores.add(new Token(new Cor(i, fim + 2, COR_COMENTARIO), false, true));
+                    cores.add(new Token(i, fim + 2, COR_COMENTARIO, false, true));
                     i = fim + 2;
                     continue;
                 }
@@ -112,7 +112,7 @@ public class TokenizadorCpp implements Tokenizador {
 					}
                     fim++;
                 }
-                cores.add(new Token(new Cor(i, fim, COR_STRING)));
+                cores.add(new Token(i, fim, COR_STRING));
                 i = fim;
                 continue;
             }
@@ -130,7 +130,7 @@ public class TokenizadorCpp implements Tokenizador {
 					}
                     fim++;
                 }
-                cores.add(new Token(new Cor(i, fim, COR_STRING)));
+                cores.add(new Token(i, fim, COR_STRING));
                 i = fim;
                 continue;
             }
@@ -144,7 +144,7 @@ public class TokenizadorCpp implements Tokenizador {
                     while(i < n && (Character.isDigit(linha.charAt(i)) || linha.charAt(i) == '.')) i++;
                     if(i < n && "fFlLuU".indexOf(linha.charAt(i)) >= 0) i++;
                 }
-                cores.add(new Token(new Cor(inicio, i, COR_NUMERO), false, true));
+                cores.add(new Token(inicio, i, COR_NUMERO, false, true));
                 continue;
             }
             // identificador/palavra-chave/tipo
@@ -159,22 +159,22 @@ public class TokenizadorCpp implements Tokenizador {
 				while(proximo < n && (linha.charAt(proximo) == ' ' || linha.charAt(proximo) == '\t')) proximo++;
 
 				if(eTipo(palavra)) {
-					cores.add(new Token(new Cor(inicio, i, COR_TIPO), false, true));
+					cores.add(new Token(inicio, i, COR_TIPO, false, true));
 					continue;
 				} else if(ePalavraChave(palavra)) {
-					cores.add(new Token(new Cor(inicio, i, COR_PALAVRA_CHAVE), false, true));
+					cores.add(new Token(inicio, i, COR_PALAVRA_CHAVE, false, true));
 					continue;
 				} else if(proximo < n && linha.charAt(proximo) == '(') {
-					cores.add(new Token(new Cor(inicio, i, Cor.AZUL))); // azul para funções
+					cores.add(new Token(inicio, i, Cor.AZUL)); // azul para funções
 					continue;
 				} else {
-					cores.add(new Token(new Cor(inicio, i, COR_IDENTIFICADOR)));
+					cores.add(new Token(inicio, i, COR_IDENTIFICADOR));
 					continue;
 				}
 			}
             // separadores
             if("(){}[];,".indexOf(c) >= 0) {
-                cores.add(new Token(new Cor(i, i + 1, COR_SEPARADOR)));
+                cores.add(new Token(i, i + 1, COR_SEPARADOR));
                 i++;
                 continue;
             }
@@ -188,12 +188,12 @@ public class TokenizadorCpp implements Tokenizador {
                         (c == '&' && p == '&') || (c == '|' && p == '|') ||
                         (c == '+' && p == '+') || (c == '-' && p == '-') ||
                         (c == ':' && p == ':') || (c == '-' && p == '>')) {
-                        cores.add(new Token(new Cor(inicio, i + 2, COR_OPERADOR)));
+                        cores.add(new Token(inicio, i + 2, COR_OPERADOR));
                         i += 2;
                         continue;
                     }
                 }
-                cores.add(new Token(new Cor(inicio, i + 1, COR_OPERADOR)));
+                cores.add(new Token(inicio, i + 1, COR_OPERADOR));
                 i++;
                 continue;
             }

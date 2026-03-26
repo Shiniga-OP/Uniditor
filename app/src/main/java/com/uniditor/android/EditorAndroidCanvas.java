@@ -181,6 +181,7 @@ public class EditorAndroidCanvas extends View {
         editor.render.defAPI(canvas);
         editor.render.ajustar(getWidth(), getHeight());
         editor.att();
+		invalidate();
     }
 
     @Override
@@ -217,7 +218,6 @@ public class EditorAndroidCanvas extends View {
 					} else {
 						pararAutoRolamento();
 					}
-					invalidate();
 					break;
 				}
 				float dyAbs = Math.abs(e.getY() - toqueInicioY);
@@ -233,7 +233,6 @@ public class EditorAndroidCanvas extends View {
 					aplicarRolamento(delta);
 					ultimoY = e.getY();
 					ultimoTempo = e.getEventTime();
-					invalidate();
 				}
 				break;
 			case MotionEvent.ACTION_UP:
@@ -250,7 +249,6 @@ public class EditorAndroidCanvas extends View {
 				}
 				break;
 		}
-		invalidate();
 		return true;
 	}
 	
@@ -327,8 +325,6 @@ public class EditorAndroidCanvas extends View {
             @Override
             public boolean commitText(CharSequence texto, int novoCursor) {
                 editor.entrada.add(texto.toString());
-                editor.garantirCursorVisivel();
-                invalidate();
                 return true;
             }
 
@@ -336,8 +332,6 @@ public class EditorAndroidCanvas extends View {
             public boolean deleteSurroundingText(int antes, int depois) {
                 for(int i = 0; i < antes;  i++) editor.entrada.rmAntes();
                 for(int i = 0; i < depois; i++) editor.entrada.rmDepois();
-                editor.garantirCursorVisivel();
-                invalidate();
                 return true;
             }
 
@@ -360,8 +354,6 @@ public class EditorAndroidCanvas extends View {
                         default:
                             return super.sendKeyEvent(evento);
                     }
-                    editor.garantirCursorVisivel();
-                    invalidate();
                     return true;
                 }
                 return super.sendKeyEvent(evento);
@@ -375,7 +367,7 @@ public class EditorAndroidCanvas extends View {
 		pararInercia();
 		pararAutoRolamento();
 		if(modoAcao != null) modoAcao.finish();
-		editor.render.liberar();
+		editor.liberar();
 	}
 }
 
