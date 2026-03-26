@@ -10,6 +10,9 @@ public abstract class Editor {
     public Cursor cursor;
     public EntradaTexto entrada;
     public Buffer buffer;
+	
+	public float rolamentoY;
+	public float ESPACO_TOPO;
 
     public abstract void abrirTeclado();
     public abstract void att();

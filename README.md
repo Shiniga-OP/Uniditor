@@ -27,4 +27,6 @@ public class SuaActivity extends Activity {
 ## feito atualmente:
 1. Editor de texto básico.
 2. Quantidade de linhas ao lado.
-3. (Android)Arrastar/Pressionar abre o menu de opções(Copiar, Colar, Recortar). Além de selecionar pressionando ou arrastando o dedo.
+3. Pressionar abre o menu de opções(Copiar, Colar, Recortar, Selecionar tudo) acima, e seleciona a palavra inteira.
+4. Pressionar + Arrastar, seleciona tudo onde for arrastado, além de auto-rolamento.
+4. Arrastar, rolamento suave para navegação entre as linhas com inércia.

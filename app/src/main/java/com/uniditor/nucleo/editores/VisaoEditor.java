@@ -13,9 +13,7 @@ import com.uniditor.nucleo.entradas.EntradaTexto;
 
 public class VisaoEditor extends Editor {
     public final float ESPACO_ESQ = 12f;
-    public final float ESPACO_TOPO = 12f;
-    public float rolamentoY = 0f;
-
+    
     public boolean cursorVisivel = true;
     public Timer relogio;
     public TimerTask piscaCursor;
@@ -47,6 +45,9 @@ public class VisaoEditor extends Editor {
             }
         };
         relogio.schedule(piscaCursor, 500, 500);
+		
+		ESPACO_TOPO = 12f;
+		rolamentoY = 0f;
     }
 
     @Override
@@ -120,8 +121,8 @@ public class VisaoEditor extends Editor {
         render.defPos(0, -rolamentoY);
 
         int primeiraLinha = Math.max(0, (int)(rolamentoY / altLinha));
-        int ultimaLinha = Math.min(buffer.totalLinhas() - 1, (int)((rolamentoY + render.largura) / altLinha) + 1);
-
+        int ultimaLinha = Math.min(buffer.totalLinhas() - 1, (int)((rolamentoY + render.altura) / altLinha) + 1);
+		
         // === destaque de seleção ===
         Selecao sel = entrada.selecao();
         if(sel.ativa) {
