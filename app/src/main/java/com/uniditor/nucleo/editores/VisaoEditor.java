@@ -5,15 +5,19 @@ import com.uniditor.nucleo.entradas.EntradaTextoSimples;
 import com.uniditor.nucleo.entradas.Selecao;
 import com.uniditor.nucleo.Buffer;
 import com.uniditor.nucleo.BufferSimples;
-import java.util.Timer;
-import java.util.TimerTask;
+import com.uniditor.nucleo.graficos.Cor;
 import com.uniditor.nucleo.graficos.Renderizador;
+import com.uniditor.nucleo.sintaxe.Destaque;
 import com.uniditor.nucleo.Editor;
 import com.uniditor.nucleo.entradas.EntradaTexto;
+import java.util.Timer;
+import java.util.TimerTask;
+import com.uniditor.nucleo.sintaxe.Tokenizador;
+import com.uniditor.nucleo.sintaxe.Token;
 
 public class VisaoEditor extends Editor {
     public final float ESPACO_ESQ = 12f;
-    
+
     public boolean cursorVisivel = true;
     public Timer relogio;
     public TimerTask piscaCursor;
@@ -25,16 +29,19 @@ public class VisaoEditor extends Editor {
     public final int COR_sarjeta_FUNDO = 0xFF252525;
     public final int COR_SELECAO = 0x664FC3FF;
 
-    public VisaoEditor(Renderizador render) {
-        this("", render);
+    public Destaque destaque = null; // null = sem coloração
+
+    public VisaoEditor(Renderizador render, Tokenizador tokenizador) {
+        this("", render, tokenizador);
     }
 
-    public VisaoEditor(String textoInicial, Renderizador render) {
+    public VisaoEditor(String textoInicial, Renderizador render, Tokenizador tokenizador) {
         buffer = new BufferSimples(textoInicial);
         cursor = new CursorSimples();
         entrada = new EntradaTextoSimples(buffer, cursor);
         this.render = render;
         this.render.iniciar();
+		this.destaque = new Destaque(tokenizador);
 
         if(relogio == null) relogio = new Timer();
 
@@ -45,9 +52,9 @@ public class VisaoEditor extends Editor {
             }
         };
         relogio.schedule(piscaCursor, 500, 500);
-		
-		ESPACO_TOPO = 12f;
-		rolamentoY = 0f;
+
+        ESPACO_TOPO = 12f;
+        rolamentoY  = 0f;
     }
 
     @Override
@@ -108,6 +115,7 @@ public class VisaoEditor extends Editor {
         return render.larguraTexto("0") * (digitos + 1) + ESPACO_ESQ;
     }
 
+    @Override
     public void att() {
         if(render.pause) return;
         render.iniciarQuadro();
@@ -121,8 +129,9 @@ public class VisaoEditor extends Editor {
         render.defPos(0, -rolamentoY);
 
         int primeiraLinha = Math.max(0, (int)(rolamentoY / altLinha));
-        int ultimaLinha = Math.min(buffer.totalLinhas() - 1, (int)((rolamentoY + render.altura) / altLinha) + 1);
-		
+        int ultimaLinha = Math.min(buffer.totalLinhas() - 1,
+        (int)((rolamentoY + render.altura) / altLinha) + 1);
+
         // === destaque de seleção ===
         Selecao sel = entrada.selecao();
         if(sel.ativa) {
@@ -148,20 +157,25 @@ public class VisaoEditor extends Editor {
             }
         }
         // === texto ===
-        render.defCorTexto(COR_TEXTO);
+        if(destaque != null) destaque.reiniciar();
         for(int i = primeiraLinha; i <= ultimaLinha; i++) {
             float y = ESPACO_TOPO + i * altLinha + baseline;
-            render.renderTexto(buffer.linha(i), sarjetaLarg + ESPACO_ESQ, y);
+            String linhaStr = buffer.linha(i);
+            if(destaque != null) {
+                Token[] cores = destaque.colorir(linhaStr);
+                render.renderTextoCor(linhaStr, cores, sarjetaLarg + ESPACO_ESQ, y);
+            } else {
+                render.defCorTexto(COR_TEXTO);
+                render.renderTexto(linhaStr, sarjetaLarg + ESPACO_ESQ, y);
+            }
         }
-
         // === cursor(oculto durante seleção ativa) ===
         if(cursorVisivel && !sel.ativa) {
             float xCursor = sarjetaLarg + ESPACO_ESQ
-				+ render.larguraTexto(buffer.linha(cursor.linha()).substring(0, cursor.coluna()));
+                + render.larguraTexto(buffer.linha(cursor.linha()).substring(0, cursor.coluna()));
             float yCursor = ESPACO_TOPO + cursor.linha() * altLinha;
             render.renderRetangulo(xCursor, yCursor, 2f, altLinha, COR_CURSOR);
         }
-
         render.subRecorte();
 
         // === sarjeta ===
@@ -173,7 +187,6 @@ public class VisaoEditor extends Editor {
             float xNum = sarjetaLarg - render.larguraTexto(num) - ESPACO_ESQ;
             render.renderTexto(num, xNum, y);
         }
-
         render.fimQuadro();
     }
 
@@ -183,5 +196,4 @@ public class VisaoEditor extends Editor {
         rolamentoY = 0f;
     }
 }
-
 

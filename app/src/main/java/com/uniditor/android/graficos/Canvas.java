@@ -8,6 +8,7 @@ import com.uniditor.nucleo.graficos.Cor;
 import com.uniditor.nucleo.graficos.Renderizador;
 
 import java.util.ArrayDeque;
+import com.uniditor.nucleo.sintaxe.Token;
 
 public class Canvas implements Renderizador {
     public android.graphics.Canvas canvas;
@@ -28,6 +29,11 @@ public class Canvas implements Renderizador {
 			pause = false;
 		}
 	}
+	
+	@Override
+	public void defTextoTam(float tam) {
+		pincelTexto.setTextSize(tam);
+	}
 
 	@Override
 	public void ajustar(int h, int v) {
@@ -38,10 +44,10 @@ public class Canvas implements Renderizador {
     @Override
     public void iniciar() {
         pincelTexto.setTypeface(Typeface.MONOSPACE);
-        pincelTexto.setTextSize(40f);
         pincelTexto.setColor(0xFFE0E0E0);
         pincelForma.setColor(0xFFFFFFFF);
         pincelFundo.setColor(0xFF1E1E1E);
+		defTextoTam(25f);
     }
 
     @Override
@@ -87,34 +93,50 @@ public class Canvas implements Renderizador {
     }
 
     @Override
-    public void renderTextoCor(String texto, Cor[] cores, float x, float y) {
-        if(cores == null || cores.length == 0) {
-            renderTexto(texto, x, y);
-            return;
-        }
-        int corOriginal = pincelTexto.getColor();
-        int pos = 0;
+	public void renderTextoCor(String texto, Token[] cores, float x, float y) {
+		if(cores == null || cores.length == 0) {
+			renderTexto(texto, x, y);
+			return;
+		}
+		int corOriginal = pincelTexto.getColor();
+		int pos = 0;
 
-        for(Cor c : cores) {
-            if(pos < c.inicio) {
-                pincelTexto.setColor(corOriginal);
-                float ox = x + pincelTexto.measureText(texto, 0, pos);
-                canvas.drawText(texto, pos, c.inicio, ox, y, pincelTexto);
-            }
-            if(c.inicio < c.fim && c.fim <= texto.length()) {
-                pincelTexto.setColor(c.valor);
-                float ox = x + pincelTexto.measureText(texto, 0, c.inicio);
-                canvas.drawText(texto, c.inicio, c.fim, ox, y, pincelTexto);
-                pos = c.fim;
-            }
-        }
-        if(pos < texto.length()) {
-            pincelTexto.setColor(corOriginal);
-            float ox = x + pincelTexto.measureText(texto, 0, pos);
-            canvas.drawText(texto, pos, texto.length(), ox, y, pincelTexto);
-        }
-        pincelTexto.setColor(corOriginal);
-    }
+		for(Token token : cores) {
+			Cor c = token.cor;
+			
+			// 1. desenha o trecho sem estilo(antes do token)
+			if(pos < c.inicio) {
+				pincelTexto.setTypeface(Typeface.defaultFromStyle(Typeface.NORMAL));
+				pincelTexto.setColor(corOriginal);
+				float ox = x + pincelTexto.measureText(texto, 0, pos);
+				canvas.drawText(texto, pos, c.inicio, ox, y, pincelTexto);
+			}
+			// 2. aplica estilo e desenha o token
+			if(token.negrito && token.italico) {
+				pincelTexto.setTypeface(Typeface.defaultFromStyle(Typeface.BOLD_ITALIC));
+			} else if(token.negrito) {
+				pincelTexto.setTypeface(Typeface.defaultFromStyle(Typeface.BOLD));
+			} else if(token.italico) {
+				pincelTexto.setTypeface(Typeface.defaultFromStyle(Typeface.ITALIC));
+			} else {
+				pincelTexto.setTypeface(Typeface.defaultFromStyle(Typeface.NORMAL));
+			}
+			if(c.inicio < c.fim && c.fim <= texto.length()) {
+				pincelTexto.setColor(c.valor);
+				float ox = x + pincelTexto.measureText(texto, 0, c.inicio);
+				canvas.drawText(texto, c.inicio, c.fim, ox, y, pincelTexto);
+				pos = c.fim;
+			}
+		}
+		// 3. desenha o trecho restante sem estilo
+		if(pos < texto.length()) {
+			pincelTexto.setTypeface(Typeface.defaultFromStyle(Typeface.NORMAL));
+			pincelTexto.setColor(corOriginal);
+			float ox = x + pincelTexto.measureText(texto, 0, pos);
+			canvas.drawText(texto, pos, texto.length(), ox, y, pincelTexto);
+		}
+		pincelTexto.setColor(corOriginal);
+	}
 
     @Override
     public void renderRetangulo(float x, float y, float largura, float altura, int cor) {

@@ -1,5 +1,7 @@
 package com.uniditor.nucleo.graficos;
 
+import com.uniditor.nucleo.sintaxe.Token;
+
 public interface Renderizador {
 	public int altura, largura;
 	public boolean pause;
@@ -14,10 +16,11 @@ public interface Renderizador {
     void limpar(int cor);
 
     // === texto ===
+	void defTextoTam(float tamanho);
     void defFonte(String familia, float tam);
     void defCorTexto(int cor);
     void renderTexto(String texto, float x, float y);
-    void renderTextoCor(String texto, Cor[] cores, float x, float y);
+    void renderTextoCor(String texto, Token[] cores, float x, float y);
 
     // === formas ===
     void renderRetangulo(float x, float y, float largura, float altura, int cor);
