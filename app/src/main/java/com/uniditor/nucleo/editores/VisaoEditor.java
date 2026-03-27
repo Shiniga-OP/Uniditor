@@ -51,8 +51,6 @@ public class VisaoEditor extends Editor {
             }
         };
         relogio.schedule(piscaCursor, 500, 500);
-
-        ESPACO_TOPO = 12f;
         rolamentoY = 0f;
     }
 
@@ -135,7 +133,6 @@ public class VisaoEditor extends Editor {
                 if(i == fim[0])
                     xFim = sarjetaLarg + ESPACO_ESQ
 						+ render.larguraTexto(linhaStr.substring(0, Math.min(fim[1], linhaStr.length())));
-
                 if(xFim > xInicio)
                     render.renderRetangulo(xInicio, y, xFim - xInicio, altLinha, COR_SELECAO);
             }

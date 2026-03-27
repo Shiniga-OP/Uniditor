@@ -322,9 +322,23 @@ public class EditorAndroidCanvas extends View {
         info.imeOptions = EditorInfo.IME_FLAG_NO_ENTER_ACTION;
 
         return new BaseInputConnection(this, false) {
+            // adicione este metodo para manter o teclado sincronizado
+            @Override
+            public CharSequence getTextBeforeCursor(int n, int m) {
+                int linha = editor.cursor.linha();
+                int col = editor.cursor.coluna();
+                if(col > 0) {
+                    String linhaAtual = editor.buffer.linha(linha);
+                    return linhaAtual.substring(Math.max(0, col - n), col);
+                } else if(linha > 0) {
+                    return "\n"; // avisa o teclado sobre a quebra de linha
+                }
+                return "";
+            }
+
             @Override
             public boolean commitText(CharSequence texto, int novoCursor) {
-                editor.entrada.add(texto.toString());
+                editor.entrada.aoDigitar(texto.toString());
                 return true;
             }
 

@@ -8,7 +8,8 @@ public interface EntradaTexto {
     void add(String texto);
     void rmAntes();
     void rmDepois();
-
+	
+	void aoDigitar(String texto);
     // seleção
     Selecao selecao();
     void iniciarSelecao(int linha, int coluna);

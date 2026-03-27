@@ -118,5 +118,77 @@ public class EntradaTextoSimples implements EntradaTexto {
         cursor.def(ini[0], ini[1]);
         cursor.clampar(buffer);
     }
+	
+	@Override
+	public void aoDigitar(String texto) {
+		if(texto.contains("\n")) {
+			String linhaAtual = buffer.linha(cursor.linha());
+			// Pega apenas o texto antes do cursor para não copiar indentação acidental
+			String antesCursor = linhaAtual.substring(0, cursor.coluna());
+			StringBuilder indentar = new StringBuilder();
+
+			for(int i = 0; i < antesCursor.length(); i++) {
+				char c = antesCursor.charAt(i);
+				if(c == ' ') indentar.append(c);
+				else if(c == '\t') indentar.append(c);
+				else break;
+			}
+			// se estiver abrindo um bloco, aumenta a indentação
+			if(antesCursor.trim().endsWith("{")) {
+				String novaIndentacao = indentar.toString() + "\t\t\t";
+				if(proxCaractere().equals("}")) {
+					// caso especial: enter no meio de {}
+					add("\n" + novaIndentacao + "\n" + indentar.toString());
+					cursor.mover(-1, 0, buffer);
+					cursor.def(cursor.linha(), novaIndentacao.length());
+					return;
+				} else {
+					add("\n" + novaIndentacao);
+					return;
+				}
+			}
+			add("\n" + indentar.toString());
+			return;
+		}
+		if(texto.equals("{")) {
+			add("{}");
+			cursor.mover(0, -1, buffer);
+			return;
+		}
+		if(texto.equals("}")) {
+			if(proxCaractere().equals("}")) {
+				cursor.mover(0, 1, buffer);
+			} else {
+				add("}");
+			}
+			return;
+		}
+		if(texto.equals("\"")) {
+			if(proxCaractere().equals("\"")) {
+				cursor.mover(0, 1, buffer);
+			} else {
+				add("\"\"");
+				cursor.mover(0, -1, buffer);
+			}
+			return;
+		}
+		if(texto.equals("'")) {
+			if(proxCaractere().equals("'")) {
+				cursor.mover(0, 1, buffer);
+			} else {
+				add("''");
+				cursor.mover(0, -1, buffer);
+			}
+			return;
+		}
+		add(texto);
+	}
+
+	public String proxCaractere() {
+		String linha = buffer.linha(cursor.linha());
+		int col = cursor.coluna();
+		if(col < linha.length()) return String.valueOf(linha.charAt(col));
+		return "";
+	}
 }
 
