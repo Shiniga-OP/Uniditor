@@ -39,7 +39,6 @@ public class VisaoEditor extends Editor {
         cursor = new CursorSimples();
         entrada = new EntradaTextoSimples(buffer, cursor);
         this.render = render;
-        this.render.iniciar();
 		this.tokenizador = tokenizador;
 
         if(relogio == null) relogio = new Timer();

@@ -36,3 +36,5 @@ public class SuaActivity extends Activity {
 4. Pressionar + Arrastar, seleciona tudo onde for arrastado, além de auto-rolamento.
 4. Arrastar, rolamento suave para navegação entre as linhas com inércia.
 5. Destaque de sintaxe básico pra C++.
+6. Auto Identação.
+7. Fechamento de chaves e aspas automatico.

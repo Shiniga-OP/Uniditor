@@ -9,6 +9,8 @@ import com.uniditor.nucleo.graficos.Renderizador;
 
 import java.util.ArrayDeque;
 import com.uniditor.nucleo.sintaxe.Token;
+import java.io.File;
+import com.uniditor.nucleo.fontes.Fonte;
 
 public class Canvas implements Renderizador {
     public android.graphics.Canvas canvas;
@@ -18,18 +20,23 @@ public class Canvas implements Renderizador {
     public final Paint pincelFundo = new Paint();
 
     public final ArrayDeque<Rect> pilhaRecorte = new ArrayDeque<>();
-	
-	public Canvas() {
+
+    public int TAM_TAB = 4;
+
+	public Canvas(int corForma, int corFundo) {
 		pause = true;
+		pincelForma.setColor(corForma);
+        pincelFundo.setColor(corFundo);
+		defTextoTam(25f);
 	}
-	
+
 	public void defAPI(Object canvas) {
 		if(canvas instanceof android.graphics.Canvas) {
 			this.canvas = (android.graphics.Canvas)canvas;
 			pause = false;
 		}
 	}
-	
+
 	@Override
 	public void defTextoTam(float tam) {
 		pincelTexto.setTextSize(tam);
@@ -40,15 +47,6 @@ public class Canvas implements Renderizador {
 		this.altura = v;
 		this.largura = h;
 	}
-
-    @Override
-    public void iniciar() {
-        pincelTexto.setTypeface(Typeface.MONOSPACE);
-        pincelTexto.setColor(0xFFE0E0E0);
-        pincelForma.setColor(0xFFFFFFFF);
-        pincelFundo.setColor(0xFF1E1E1E);
-		defTextoTam(25f);
-    }
 
     @Override
     public void liberar() {
@@ -74,13 +72,11 @@ public class Canvas implements Renderizador {
     }
 
     @Override
-    public void defFonte(String familia, float tam) {
-        Typeface tf = familia != null
-			? Typeface.create(familia, Typeface.NORMAL)
-			: Typeface.MONOSPACE;
-        pincelTexto.setTypeface(tf);
-        pincelTexto.setTextSize(tam);
-    }
+	public void defFonte(Fonte fonte) {
+		Typeface tf = Typeface.createFromFile(fonte.arquivo());
+		pincelTexto.setTypeface(tf);
+		pincelTexto.setTextSize(fonte.tamanho());
+	}
 
     @Override
     public void defCorTexto(int cor) {
@@ -89,7 +85,23 @@ public class Canvas implements Renderizador {
 
     @Override
     public void renderTexto(String texto, float x, float y) {
-        canvas.drawText(texto, x, y, pincelTexto);
+        if(texto.indexOf('\t') < 0) {
+            canvas.drawText(texto, x, y, pincelTexto);
+            return;
+        }
+        float largTab = pincelTexto.measureText(" ") * TAM_TAB;
+        float ox = x;
+        int inicio = 0;
+        for(int i = 0; i <= texto.length(); i++) {
+            if(i == texto.length() || texto.charAt(i) == '\t') {
+                if(i > inicio) {
+                    canvas.drawText(texto, inicio, i, ox, y, pincelTexto);
+                    ox += pincelTexto.measureText(texto, inicio, i);
+                }
+                if(i < texto.length()) ox += largTab;
+                inicio = i + 1;
+            }
+        }
     }
 
     @Override
@@ -102,7 +114,6 @@ public class Canvas implements Renderizador {
 		int pos = 0;
 
 		for(Token token : cores) {
-			// 2. aplica estilo e desenha o token
 			if(token.negrito && token.italico) {
 				pincelTexto.setTypeface(Typeface.defaultFromStyle(Typeface.BOLD_ITALIC));
 			} else if(token.negrito) {
@@ -114,17 +125,16 @@ public class Canvas implements Renderizador {
 			}
 			if(token.inicio < token.fim && token.fim <= texto.length()) {
 				pincelTexto.setColor(token.cor);
-				float ox = x + pincelTexto.measureText(texto, 0, token.inicio);
-				canvas.drawText(texto, token.inicio, token.fim, ox, y, pincelTexto);
+				float ox = x + larguraTexto(texto.substring(0, token.inicio));
+				renderTexto(texto.substring(token.inicio, token.fim), ox, y);
 				pos = token.fim;
 			}
 		}
-		// desenha o trecho restante sem estilo
 		if(pos < texto.length()) {
 			pincelTexto.setTypeface(Typeface.defaultFromStyle(Typeface.NORMAL));
 			pincelTexto.setColor(corOriginal);
-			float ox = x + pincelTexto.measureText(texto, 0, pos);
-			canvas.drawText(texto, pos, texto.length(), ox, y, pincelTexto);
+			float ox = x + larguraTexto(texto.substring(0, pos));
+			renderTexto(texto.substring(pos), ox, y);
 		}
 		pincelTexto.setColor(corOriginal);
 	}
@@ -146,11 +156,20 @@ public class Canvas implements Renderizador {
 
     @Override
     public float larguraTexto(String texto) {
-        return pincelTexto.measureText(texto);
+        if(texto.indexOf('\t') < 0) return pincelTexto.measureText(texto);
+        float total = 0f;
+        float largTab = pincelTexto.measureText(" ") * TAM_TAB;
+        for(int i = 0; i < texto.length(); i++) {
+            char c = texto.charAt(i);
+            if(c == '\t') total += largTab;
+            else total += pincelTexto.measureText(texto, i, i + 1);
+        }
+        return total;
     }
 
     @Override
     public float larguraCaractere(char c) {
+        if (c == '\t') return pincelTexto.measureText(" ") * TAM_TAB;
         return pincelTexto.measureText(String.valueOf(c));
     }
 
@@ -201,4 +220,3 @@ public class Canvas implements Renderizador {
         return altura;
     }
 }
-

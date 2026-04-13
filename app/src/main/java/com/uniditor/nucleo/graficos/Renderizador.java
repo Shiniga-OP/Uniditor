@@ -1,12 +1,12 @@
 package com.uniditor.nucleo.graficos;
 
 import com.uniditor.nucleo.sintaxe.Token;
+import com.uniditor.nucleo.fontes.Fonte;
 
 public interface Renderizador {
 	public int altura, largura;
 	public boolean pause;
     // === ciclo de vida ===
-    void iniciar();
     void liberar();
     void iniciarQuadro(); // chamado no inicio de cada qudro
     void fimQuadro(); // chamado no fim
@@ -17,7 +17,7 @@ public interface Renderizador {
 
     // === texto ===
 	void defTextoTam(float tamanho);
-    void defFonte(String familia, float tam);
+    void defFonte(Fonte fonte);
     void defCorTexto(int cor);
     void renderTexto(String texto, float x, float y);
     void renderTextoCor(String texto, Token[] cores, float x, float y);

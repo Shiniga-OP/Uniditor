@@ -30,7 +30,10 @@ public class EntradaTextoSimples implements EntradaTexto {
 
     @Override
     public void rmAntes() {
-        if(selecao.ativa) { rmSelecao(); return; }
+        if(selecao.ativa) {
+			rmSelecao();
+			return;
+		}
         int linha = cursor.linha();
         int coluna = cursor.coluna();
 
@@ -46,7 +49,10 @@ public class EntradaTextoSimples implements EntradaTexto {
 
     @Override
     public void rmDepois() {
-        if(selecao.ativa) { rmSelecao(); return; }
+        if(selecao.ativa) {
+			rmSelecao();
+			return;
+		}
         int linha = cursor.linha();
         int coluna = cursor.coluna();
         String linhaAtual = buffer.linha(linha);
@@ -118,12 +124,12 @@ public class EntradaTextoSimples implements EntradaTexto {
         cursor.def(ini[0], ini[1]);
         cursor.clampar(buffer);
     }
-	
+
 	@Override
 	public void aoDigitar(String texto) {
 		if(texto.contains("\n")) {
 			String linhaAtual = buffer.linha(cursor.linha());
-			// Pega apenas o texto antes do cursor para não copiar indentação acidental
+			// pega apenas o texto antes do cursor para não copiar indentação acidental
 			String antesCursor = linhaAtual.substring(0, cursor.coluna());
 			StringBuilder indentar = new StringBuilder();
 
@@ -135,10 +141,11 @@ public class EntradaTextoSimples implements EntradaTexto {
 			}
 			// se estiver abrindo um bloco, aumenta a indentação
 			if(antesCursor.trim().endsWith("{")) {
-				String novaIndentacao = indentar.toString() + "\t\t\t";
+				String indentacaoAtual = indentar.toString();
+				String novaIndentacao = indentacaoAtual + "\t";
 				if(proxCaractere().equals("}")) {
 					// caso especial: enter no meio de {}
-					add("\n" + novaIndentacao + "\n" + indentar.toString());
+					add("\n" + novaIndentacao + "\n" + indentacaoAtual);
 					cursor.mover(-1, 0, buffer);
 					cursor.def(cursor.linha(), novaIndentacao.length());
 					return;
@@ -191,4 +198,3 @@ public class EntradaTextoSimples implements EntradaTexto {
 		return "";
 	}
 }
-

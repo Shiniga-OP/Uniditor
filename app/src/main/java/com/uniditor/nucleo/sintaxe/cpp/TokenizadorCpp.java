@@ -144,7 +144,7 @@ public class TokenizadorCpp implements Tokenizador {
                     while(i < n && (Character.isDigit(linha.charAt(i)) || linha.charAt(i) == '.')) i++;
                     if(i < n && "fFlLuU".indexOf(linha.charAt(i)) >= 0) i++;
                 }
-                cores.add(new Token(inicio, i, COR_NUMERO, false, true));
+                cores.add(new Token(inicio, i, COR_NUMERO));
                 continue;
             }
             // identificador/palavra-chave/tipo
@@ -162,7 +162,7 @@ public class TokenizadorCpp implements Tokenizador {
 					cores.add(new Token(inicio, i, COR_TIPO, false, true));
 					continue;
 				} else if(ePalavraChave(palavra)) {
-					cores.add(new Token(inicio, i, COR_PALAVRA_CHAVE, false, true));
+					cores.add(new Token(inicio, i, COR_PALAVRA_CHAVE, true, true));
 					continue;
 				} else if(proximo < n && linha.charAt(proximo) == '(') {
 					cores.add(new Token(inicio, i, Cor.AZUL)); // azul para funções
