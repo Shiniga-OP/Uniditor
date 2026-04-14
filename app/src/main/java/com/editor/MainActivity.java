@@ -2,20 +2,23 @@ package com.editor;
 
 import android.app.Activity;
 import android.os.Bundle;
-import com.uniditor.nucleo.editores.VisaoEditor;
-import com.uniditor.android.EditorAndroidCanvas;
+
+import com.uniditor.android.ConfigAndroid;
 import com.uniditor.android.graficos.Canvas;
+import com.uniditor.android.EditorAndroidCanvas;
+
+import com.uniditor.nucleo.editores.VisaoEditor;
 import com.uniditor.nucleo.sintaxe.cpp.TokenizadorCpp;
 import com.uniditor.nucleo.fontes.Fonte;
+import com.uniditor.nucleo.Util;
+
 import java.io.File;
-import java.io.IOException;
-import com.arquivos.ArquivosUtil;
-import android.widget.Toast;
 
 public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle s) {
         super.onCreate(s);
+		new ConfigAndroid(this);
 		
 		VisaoEditor visaoEditor = new VisaoEditor(
 			new Canvas(
@@ -28,15 +31,7 @@ public class MainActivity extends Activity {
 		visaoEditor.render.defFonte(new Fonte() {
 				@Override
 				public File arquivo() {
-					try {
-						return ArquivosUtil.copiarArquivoAssets(
-							getAssets().open("firacode-regular.ttf"),
-							getCacheDir(), "firecode.ttf"
-						);
-					} catch(IOException e) {
-						msg("[ERRO]: "+e);
-						return null;
-					}
+					return Util.arquivo.copiarArquivoAssets("firacode-regular.ttf");
 				}
 
 				@Override
@@ -52,8 +47,4 @@ public class MainActivity extends Activity {
 		EditorAndroidCanvas editor = new EditorAndroidCanvas(this, visaoEditor);
         setContentView(editor);
     }
-	
-	public void msg(String txt) {
-		Toast.makeText(this, txt, Toast.LENGTH_LONG).show();
-	}
 }

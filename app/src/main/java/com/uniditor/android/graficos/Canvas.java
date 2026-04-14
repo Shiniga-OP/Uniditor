@@ -111,17 +111,18 @@ public class Canvas implements Renderizador {
 			return;
 		}
 		int corOriginal = pincelTexto.getColor();
+		Typeface tfBase = pincelTexto.getTypeface();
 		int pos = 0;
 
 		for(Token token : cores) {
 			if(token.negrito && token.italico) {
-				pincelTexto.setTypeface(Typeface.defaultFromStyle(Typeface.BOLD_ITALIC));
+				pincelTexto.setTypeface(Typeface.create(tfBase, Typeface.BOLD_ITALIC));
 			} else if(token.negrito) {
-				pincelTexto.setTypeface(Typeface.defaultFromStyle(Typeface.BOLD));
+				pincelTexto.setTypeface(Typeface.create(tfBase, Typeface.BOLD));
 			} else if(token.italico) {
-				pincelTexto.setTypeface(Typeface.defaultFromStyle(Typeface.ITALIC));
+				pincelTexto.setTypeface(Typeface.create(tfBase, Typeface.ITALIC));
 			} else {
-				pincelTexto.setTypeface(Typeface.defaultFromStyle(Typeface.NORMAL));
+				pincelTexto.setTypeface(Typeface.create(tfBase, Typeface.NORMAL));
 			}
 			if(token.inicio < token.fim && token.fim <= texto.length()) {
 				pincelTexto.setColor(token.cor);
@@ -131,12 +132,13 @@ public class Canvas implements Renderizador {
 			}
 		}
 		if(pos < texto.length()) {
-			pincelTexto.setTypeface(Typeface.defaultFromStyle(Typeface.NORMAL));
+			pincelTexto.setTypeface(Typeface.create(tfBase, Typeface.NORMAL));
 			pincelTexto.setColor(corOriginal);
 			float ox = x + larguraTexto(texto.substring(0, pos));
 			renderTexto(texto.substring(pos), ox, y);
 		}
 		pincelTexto.setColor(corOriginal);
+		pincelTexto.setTypeface(tfBase);
 	}
 
     @Override
@@ -169,7 +171,7 @@ public class Canvas implements Renderizador {
 
     @Override
     public float larguraCaractere(char c) {
-        if (c == '\t') return pincelTexto.measureText(" ") * TAM_TAB;
+        if(c == '\t') return pincelTexto.measureText(" ") * TAM_TAB;
         return pincelTexto.measureText(String.valueOf(c));
     }
 
@@ -220,3 +222,4 @@ public class Canvas implements Renderizador {
         return altura;
     }
 }
+
