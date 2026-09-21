@@ -1,4 +1,4 @@
-package com.uniditor.nucleo.sintaxe.cpp;
+package com.uniditor.nucleo.sintaxe;
 
 import com.uniditor.nucleo.graficos.Cor;
 import com.uniditor.nucleo.sintaxe.Token;
@@ -6,7 +6,7 @@ import com.uniditor.nucleo.sintaxe.Tokenizador;
 import java.util.ArrayList;
 import java.util.List;
 
-public class TokenizadorCpp implements Tokenizador {
+public class TokenizadorJava implements Tokenizador {
     // cores do tema
     public int COR_PRE_PROCESSADOR = Cor.ROXO;
 	public int COR_IDENTIFICADOR = 0xFFABB2BF;
@@ -17,17 +17,18 @@ public class TokenizadorCpp implements Tokenizador {
 	public int COR_COMENTARIO = 0xFF5C6370;
 	public int COR_PALAVRA_CHAVE = Cor.ROXO;
 	public int COR_SEPARADOR = 0xFFABB2BF;
+	public final List<Token> cores = new ArrayList<>();
 
     public final String[] TIPOS = {
-        "void", "int", "float", "double", "long", "char", "bool",
-        "short", "unsigned", "signed", "wchar_t", "auto", "size_t"
+        "void", "int", "float", "double", "long", "char", "boolean",
+        "short", "byte"
     };
     public final String[] PALAVRAS_CHAVE = {
         "if", "else", "for", "while", "do", "switch", "case", "break",
-        "continue", "return", "class", "struct", "enum", "namespace",
-        "using", "template", "typename", "public", "public", "protected",
-        "new", "delete", "this", "const", "static", "virtual", "override",
-        "true", "false", "nullptr", "sizeof", "typedef", "inline", "extern", "explicit"
+        "continue", "return", "class", "import", "package", "enum",
+		"public", "private", "protected", "abstract",
+        "new", "this", "final", "volatile", "static", "override",
+        "true", "false", "null", "instanceof", "inline", "implements", "extends"
     };
     public boolean emComentarioBloco = false;
 
@@ -38,12 +39,12 @@ public class TokenizadorCpp implements Tokenizador {
 
     @Override
     public Token[] tokenizar(String linha) {
-        List<Token> cores = new ArrayList<>();
-        int n = linha.length();
+        cores.clear();
+        final int n = linha.length();
         int i = 0;
 
         if(emComentarioBloco) {
-            int fim = linha.indexOf("*/");
+            final int fim = linha.indexOf("*/");
             if(fim == -1) {
                 cores.add(new Token(0, n, COR_COMENTARIO, false, true));
                 return cores.toArray(new Token[0]);
@@ -54,32 +55,12 @@ public class TokenizadorCpp implements Tokenizador {
             }
         }
         while(i < n) {
-            char c = linha.charAt(i);
+            final char c = linha.charAt(i);
 
             if(c == ' ' || c == '\t') {
 				i++;
 				continue;
 			}
-            // pré-processador
-            if(c == '#') {
-                cores.add(new Token(i, i + 8, COR_PRE_PROCESSADOR, false, true));
-                // <leitor> ou "leitor" dentro do #include
-                String resto = linha.substring(i).trim();
-                if(resto.startsWith("#include")) {
-                    int lt = linha.indexOf('<', i);
-                    int gt = lt != -1 ? linha.indexOf('>', lt) : -1;
-                    if(lt != -1 && gt != -1) {
-                        cores.add(new Token(lt, gt + 1, Cor.AZUL, false, true));
-                    } else {
-                        int qt = linha.indexOf('"', i);
-                        if(qt != -1) {
-                            int qf = linha.indexOf('"', qt + 1);
-                            if(qf != -1) cores.add(new Token(qt, qf + 1, Cor.AZUL));
-                        }
-                    }
-                }
-                return cores.toArray(new Token[0]);
-            }
             // comentario de linha
             if(c == '/' && i + 1 < n && linha.charAt(i + 1) == '/') {
                 cores.add(new Token(i, n, COR_COMENTARIO, false, true)); // italico mas não negrito
@@ -159,10 +140,10 @@ public class TokenizadorCpp implements Tokenizador {
 				while(proximo < n && (linha.charAt(proximo) == ' ' || linha.charAt(proximo) == '\t')) proximo++;
 
 				if(eTipo(palavra)) {
-					cores.add(new Token(inicio, i, COR_TIPO, false, true));
+					cores.add(new Token(inicio, i, COR_TIPO, false, false));
 					continue;
 				} else if(ePalavraChave(palavra)) {
-					cores.add(new Token(inicio, i, COR_PALAVRA_CHAVE, true, true));
+					cores.add(new Token(inicio, i, COR_PALAVRA_CHAVE, true, false));
 					continue;
 				} else if(proximo < n && linha.charAt(proximo) == '(') {
 					cores.add(new Token(inicio, i, Cor.AZUL)); // azul para funções
@@ -184,10 +165,10 @@ public class TokenizadorCpp implements Tokenizador {
                 if(i + 1 < n) {
                     char p = linha.charAt(i + 1);
                     if((c == '=' && p == '=') || (c == '!' && p == '=') ||
-                        (c == '<' && p == '=') || (c == '>' && p == '=') ||
-                        (c == '&' && p == '&') || (c == '|' && p == '|') ||
-                        (c == '+' && p == '+') || (c == '-' && p == '-') ||
-                        (c == ':' && p == ':') || (c == '-' && p == '>')) {
+					   (c == '<' && p == '=') || (c == '>' && p == '=') ||
+					   (c == '&' && p == '&') || (c == '|' && p == '|') ||
+					   (c == '+' && p == '+') || (c == '-' && p == '-') ||
+					   (c == ':' && p == ':') || (c == '-' && p == '>')) {
                         cores.add(new Token(inicio, i + 2, COR_OPERADOR));
                         i += 2;
                         continue;
@@ -212,4 +193,3 @@ public class TokenizadorCpp implements Tokenizador {
         return false;
     }
 }
-

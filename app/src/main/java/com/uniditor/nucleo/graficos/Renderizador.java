@@ -1,7 +1,7 @@
 package com.uniditor.nucleo.graficos;
 
 import com.uniditor.nucleo.sintaxe.Token;
-import com.uniditor.nucleo.fontes.Fonte;
+import java.io.File;
 
 public interface Renderizador {
 	public int altura, largura;
@@ -17,7 +17,8 @@ public interface Renderizador {
 
     // === texto ===
 	void defTextoTam(float tamanho);
-    void defFonte(Fonte fonte);
+	void defTabTam(int espacos);
+    void defFonte(File fonte);
     void defCorTexto(int cor);
     void renderTexto(String texto, float x, float y);
     void renderTextoCor(String texto, Token[] cores, float x, float y);

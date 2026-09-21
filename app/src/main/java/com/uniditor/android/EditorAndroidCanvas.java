@@ -12,6 +12,8 @@ import android.view.KeyEvent;
 import android.view.View;
 import android.view.inputmethod.BaseInputConnection;
 import android.view.inputmethod.EditorInfo;
+import android.view.inputmethod.ExtractedText;
+import android.view.inputmethod.ExtractedTextRequest;
 import android.view.inputmethod.InputConnection;
 import android.view.inputmethod.InputMethodManager;
 
@@ -37,7 +39,7 @@ public class EditorAndroidCanvas extends View {
     public static final int ID_SELECIONAR_TUDO = 4;
 
     public GestureDetector gestureDetector;
-	
+
 	public float veloRolamento = 0f;
 	public float ultimoY = 0f;
 	public long ultimoTempo = 0L;
@@ -45,6 +47,14 @@ public class EditorAndroidCanvas extends View {
 	public Runnable loopInercia = null;
 	public Runnable loopAutoRolamento = null;
 	public float autoRolamentoDelta = 0f;
+	public boolean redesenhoAgendado = false;
+	public final Runnable loopRedesenho = new Runnable() {
+		@Override
+		public void run() {
+			redesenhoAgendado = false;
+			invalidate();
+		}
+	};
 
     public EditorAndroidCanvas(Context ctx, final Editor editor) {
         super(ctx);
@@ -107,6 +117,70 @@ public class EditorAndroidCanvas extends View {
             || c == '>' || c == '&' || c == '|' || c == '@';
     }
 
+    public int posAbsoluta(int linha, int coluna) {
+        int total = editor.buffer.totalLinhas();
+        if(linha >= total) linha = total - 1;
+        if(linha < 0) linha = 0;
+        int soma = 0;
+        for(int i = 0; i < linha; i++) soma += editor.buffer.linha(i).length() + 1;
+        int tam = editor.buffer.linha(linha).length();
+        return soma + Math.max(0, Math.min(coluna, tam));
+    }
+
+    public int[] linhaColunaDe(int absoluta) {
+        int total = editor.buffer.totalLinhas();
+        int restante = Math.max(0, absoluta);
+        for(int i = 0; i < total; i++) {
+            int tam = editor.buffer.linha(i).length();
+            if(restante <= tam) return new int[] {i, restante};
+            restante -= tam + 1;
+        }
+        int ultima = total - 1;
+        return new int[] {ultima, editor.buffer.linha(ultima).length()};
+    }
+
+    public int inicioSelecaoAbs() {
+        if(!editor.entrada.selecao().ativa) return posAbsoluta(editor.cursor.linha(), editor.cursor.coluna());
+        int[] ini = editor.entrada.selecao().inicio();
+        return posAbsoluta(ini[0], ini[1]);
+    }
+
+    public int fimSelecaoAbs() {
+        if(!editor.entrada.selecao().ativa) return posAbsoluta(editor.cursor.linha(), editor.cursor.coluna());
+        int[] fim = editor.entrada.selecao().fim();
+        return posAbsoluta(fim[0], fim[1]);
+    }
+
+    public ClipboardManager areaTransferencia() {
+        return (ClipboardManager) getContext().getSystemService(Context.CLIPBOARD_SERVICE);
+    }
+
+    public void copiarSelecao() {
+        ClipboardManager clip = areaTransferencia();
+        String texto = editor.entrada.copiar();
+        if(!texto.isEmpty() && clip != null)
+            clip.setPrimaryClip(ClipData.newPlainText("texto", texto));
+    }
+
+    public void recortarSelecao() {
+        ClipboardManager clip = areaTransferencia();
+        String texto = editor.entrada.copiar();
+        if(!texto.isEmpty() && clip != null) {
+            clip.setPrimaryClip(ClipData.newPlainText("texto", texto));
+            editor.entrada.rmSelecao();
+        }
+    }
+
+    public void colarTexto() {
+        ClipboardManager clip = areaTransferencia();
+        if(clip == null || !clip.hasPrimaryClip()) return;
+        ClipData dados = clip.getPrimaryClip();
+        if(dados == null || dados.getItemCount() == 0) return;
+        CharSequence texto = dados.getItemAt(0).coerceToText(getContext());
+        if(texto != null && texto.length() > 0)
+            editor.entrada.add(texto.toString());
+    }
+
     public final ActionMode.Callback padraoAcao = new ActionMode.Callback() {
         @Override
         public boolean onCreateActionMode(ActionMode modo, Menu menu) {
@@ -128,30 +202,17 @@ public class EditorAndroidCanvas extends View {
 
         @Override
         public boolean onActionItemClicked(ActionMode modo, MenuItem item) {
-            ClipboardManager clip = (ClipboardManager)
-                getContext().getSystemService(Context.CLIPBOARD_SERVICE);
-
             switch(item.getItemId()) {
                 case ID_COPIAR:
-                    String textoCopiar = editor.entrada.copiar();
-                    if(!textoCopiar.isEmpty() && clip != null)
-                        clip.setPrimaryClip(ClipData.newPlainText("texto", textoCopiar));
+                    copiarSelecao();
                     modo.finish();
                     return true;
                 case ID_RECORTAR:
-                    String textoRecortar = editor.entrada.copiar();
-                    if(!textoRecortar.isEmpty() && clip != null) {
-                        clip.setPrimaryClip(ClipData.newPlainText("texto", textoRecortar));
-                        editor.entrada.rmSelecao();
-                    }
+                    recortarSelecao();
                     modo.finish();
                     return true;
                 case ID_COLAR:
-                    if(clip != null && clip.hasPrimaryClip()) {
-                        ClipData.Item it = clip.getPrimaryClip().getItemAt(0);
-                        if(it != null && it.getText() != null)
-                            editor.entrada.add(it.getText().toString());
-                    }
+                    colarTexto();
                     modo.finish();
                     return true;
                 case ID_SELECIONAR_TUDO:
@@ -181,7 +242,13 @@ public class EditorAndroidCanvas extends View {
         editor.render.defAPI(canvas);
         editor.render.ajustar(getWidth(), getHeight());
         editor.att();
-		invalidate();
+        agendarRedesenho();
+    }
+
+    public void agendarRedesenho() {
+        if(redesenhoAgendado) return;
+        redesenhoAgendado = true;
+        geren.postDelayed(loopRedesenho, 33);
     }
 
     @Override
@@ -189,13 +256,13 @@ public class EditorAndroidCanvas extends View {
 		requestFocus();
 		gestureDetector.onTouchEvent(e);
 
-		switch(e.getAction()) {
+		switch(e.getActionMasked()) {
 			case MotionEvent.ACTION_DOWN:
 				toqueInicioX = e.getX();
 				toqueInicioY = e.getY();
 				ultimoY = e.getY();
 				ultimoTempo = e.getEventTime();
-				
+
 				arrastando = false;
 				pressionado = false;
 				pararInercia();
@@ -229,7 +296,7 @@ public class EditorAndroidCanvas extends View {
 					float delta = ultimoY - e.getY();
 					long dt = e.getEventTime() - ultimoTempo;
 					if(dt > 0) veloRolamento = veloRolamento * 0.6f + (delta / dt * 16f) * 0.4f;
-					
+
 					aplicarRolamento(delta);
 					ultimoY = e.getY();
 					ultimoTempo = e.getEventTime();
@@ -251,7 +318,7 @@ public class EditorAndroidCanvas extends View {
 		}
 		return true;
 	}
-	
+
 	public void aplicarRolamento(float delta) {
 		editor.rolamentoY += delta;
 		float altTotal = editor.render.alturaLinha() * editor.buffer.totalLinhas() + editor.ESPACO_TOPO;
@@ -329,7 +396,8 @@ public class EditorAndroidCanvas extends View {
                 int col = editor.cursor.coluna();
                 if(col > 0) {
                     String linhaAtual = editor.buffer.linha(linha);
-                    return linhaAtual.substring(Math.max(0, col - n), col);
+                    int fim = Math.min(col, linhaAtual.length());
+                    return linhaAtual.substring(Math.max(0, fim - n), fim);
                 } else if(linha > 0) {
                     return "\n"; // avisa o teclado sobre a quebra de linha
                 }
@@ -338,7 +406,23 @@ public class EditorAndroidCanvas extends View {
 
             @Override
             public boolean commitText(CharSequence texto, int novoCursor) {
-                editor.entrada.aoDigitar(texto.toString());
+                String t = texto.toString();
+                if(t.length() > 1 && !t.equals("{}") && !t.equals("\"\"") && !t.equals("''")) {
+                    editor.entrada.add(t);
+                } else {
+                    editor.entrada.aoDigitar(t);
+                }
+                invalidate();
+                return true;
+            }
+
+            @Override
+            public boolean setComposingText(CharSequence texto, int novoCursor) {
+                return true;
+            }
+
+            @Override
+            public boolean finishComposingText() {
                 return true;
             }
 
@@ -347,6 +431,72 @@ public class EditorAndroidCanvas extends View {
                 for(int i = 0; i < antes;  i++) editor.entrada.rmAntes();
                 for(int i = 0; i < depois; i++) editor.entrada.rmDepois();
                 return true;
+            }
+
+            @Override
+            public CharSequence getSelectedText(int flags) {
+                if(!editor.entrada.selecao().ativa) return null;
+                String texto = editor.entrada.copiar();
+                return texto.isEmpty() ? null : texto;
+            }
+
+            @Override
+            public CharSequence getTextAfterCursor(int n, int flags) {
+                int linha = editor.cursor.linha();
+                int col = editor.cursor.coluna();
+                String linhaAtual = editor.buffer.linha(linha);
+                int ini = Math.min(col, linhaAtual.length());
+                int fim = Math.min(linhaAtual.length(), ini + n);
+                return linhaAtual.substring(ini, fim);
+            }
+
+            @Override
+            public ExtractedText getExtractedText(ExtractedTextRequest pedido, int flags) {
+                ExtractedText et = new ExtractedText();
+                et.text = editor.buffer.texto();
+                et.startOffset = 0;
+                et.selectionStart = inicioSelecaoAbs();
+                et.selectionEnd = fimSelecaoAbs();
+                if(editor.entrada.selecao().ativa) et.flags |= ExtractedText.FLAG_SELECTING;
+                return et;
+            }
+
+            @Override
+            public boolean setSelection(int inicio, int fim) {
+                int[] a = linhaColunaDe(inicio);
+                int[] b = linhaColunaDe(fim);
+                if(inicio == fim) {
+                    editor.entrada.limparSelecao();
+                    editor.cursor.def(a[0], a[1]);
+                } else {
+                    editor.entrada.iniciarSelecao(a[0], a[1]);
+                    editor.entrada.attSelecao(b[0], b[1]);
+                    editor.cursor.def(b[0], b[1]);
+                }
+                invalidate();
+                return true;
+            }
+
+            @Override
+            public boolean performContextMenuAction(int id) {
+                switch(id) {
+                    case android.R.id.paste:
+                        colarTexto();
+                        invalidate();
+                        return true;
+                    case android.R.id.copy:
+                        copiarSelecao();
+                        return true;
+                    case android.R.id.cut:
+                        recortarSelecao();
+                        invalidate();
+                        return true;
+                    case android.R.id.selectAll:
+                        editor.entrada.selecionarTudo(editor.buffer);
+                        invalidate();
+                        return true;
+                }
+                return super.performContextMenuAction(id);
             }
 
             @Override
@@ -380,8 +530,9 @@ public class EditorAndroidCanvas extends View {
 		super.onDetachedFromWindow();
 		pararInercia();
 		pararAutoRolamento();
+		geren.removeCallbacks(loopRedesenho);
+		redesenhoAgendado = false;
 		if(modoAcao != null) modoAcao.finish();
 		editor.liberar();
 	}
 }
-
