@@ -3,13 +3,13 @@ package com.editor;
 import android.app.Activity;
 import android.os.Bundle;
 
-import com.uniditor.android.ConfigAndroid;
-import com.uniditor.android.graficos.Canvas;
-import com.uniditor.android.EditorAndroidCanvas;
+import com.android.ConfigAndroid;
+import com.android.graficos.Canvas;
+import com.android.EditorAndroidCanvas;
 
-import com.uniditor.nucleo.editores.VisaoEditor;
-import com.uniditor.nucleo.sintaxe.TokenizadorJava;
-import com.uniditor.nucleo.Util;
+import com.uniditor.editores.VisaoEditor;
+import com.uniditor.sintaxe.TokenizadorJava;
+import com.uniditor.Util;
 
 import java.io.File;
 
